@@ -1,0 +1,24 @@
+PODS:
+  - lottie-ios (3.2.3)
+  - SSCustomPullToRefresh (1.0.1):
+    - lottie-ios
+
+DEPENDENCIES:
+  - lottie-ios
+  - SSCustomPullToRefresh (from `../`)
+
+SPEC REPOS:
+  trunk:
+    - lottie-ios
+
+EXTERNAL SOURCES:
+  SSCustomPullToRefresh:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  lottie-ios: c058aeafa76daa4cf64d773554bccc8385d0150e
+  SSCustomPullToRefresh: 80a0a58f1248c433cfc3c9ecd36d6224af2a36ad
+
+PODFILE CHECKSUM: 9d51f0ca50e20d23d6c10aa56e0d38ef3b68a742
+
+COCOAPODS: 1.10.0
