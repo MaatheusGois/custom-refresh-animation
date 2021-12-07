@@ -8,14 +8,14 @@
 import UIKit
 import Lottie
 
-// Protocols
+// MARK: - Protocols
 
 public protocol RefreshDelegate: NSObject {
     func startRefresh()
     func endRefresh()
 }
 
-// Structs
+// MARK: - Structs
 
 public extension SpinnerAnimationView {
     struct ViewData {
@@ -32,7 +32,7 @@ public extension SpinnerAnimationView {
     }
 }
 
-// Resource
+// MARK: - Resource
 
 public extension SpinnerAnimationView {
     enum Resource {
@@ -56,21 +56,42 @@ public extension SpinnerAnimationView {
     }
 }
 
-// Class
+// MARK: - Class
 
 public class SpinnerAnimationView: UIView {
 
+    // Constants
+
+    private enum Constants {
+        static let height: CGFloat = 60
+        static let animateDuration: CGFloat = 0.3
+    }
+
     // Views
 
-    private var parentView: UIScrollView!
-    private var refreshBaseView : UIView!
-    private var backgroundColorView : UIView!
-    private var animationView : AnimationView!
-    private var refreshControl: UIRefreshControl!
+    private weak var parentView: UIScrollView?
+
+    private lazy var refreshBaseView: UIView = .init(frame: refreshControl.bounds)
+    private lazy var backgroundColorView: UIView = .init(frame: refreshControl.bounds)
+
+    private lazy var animationView: AnimationView = .init(
+        name: viewData.resource.description,
+        bundle: .init(for: type(of: self))
+    )
+
+    private lazy var refreshControl: UIRefreshControl = .init(
+        frame: .init(
+            x: .zero,
+            y: .zero,
+            width: parentView?.frame.size.width ?? .zero,
+            height: Constants.height
+        )
+    )
 
     // Variables
 
-    private var viewData: ViewData!
+    private var viewData: ViewData
+
     private var isRefreshAnimating = false
     private var pullDistance: CGFloat = .zero
 
@@ -86,46 +107,37 @@ public class SpinnerAnimationView: UIView {
     
     // Life cycle
 
-    public required convenience init(
+    public required init(
         viewData: ViewData,
         parentView: UIScrollView,
         delegate: RefreshDelegate?
     ) {
-        self.init()
         self.viewData = viewData
         self.parentView = parentView
         self.delegate = delegate
+        super.init(frame: .zero)
     }
-    
-    // Setup
 
-    public func setupRefreshControl() {
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
-        // UIRefreshControl
+    // Public methods
 
-        refreshControl = UIRefreshControl(frame: .init(x: 0, y: 0, width: parentView.frame.size.width, height: 60))
+    /// Setup refresh control
+    public func setup() {
 
         // Setup the base view, which will hold the moving graphics
-
-        refreshBaseView = UIView(frame: refreshControl.bounds)
         refreshBaseView.backgroundColor = viewData.background
         
         // Setup the color view, which will display the background color
-
-        backgroundColorView = UIView(frame: refreshControl.bounds)
         backgroundColorView.backgroundColor = .clear
 
-        // Create the graphic image views
-
-
-        animationView = .init(
-            name: viewData.resource.description,
-            bundle: .init(for: type(of: self))
-        )
+        // Setup animation
         animationView.setColor(resource: viewData.resource)
 
         // Add the graphics to the base view
-        refreshBaseView.addSubview(self.animationView)
+        refreshBaseView.addSubview(animationView)
         
         // Clip so the graphics don't stick out
         refreshBaseView.clipsToBounds = true
@@ -143,29 +155,34 @@ public class SpinnerAnimationView: UIView {
         // When activated, invoke our refresh function
         refreshControl.addTarget(self, action: #selector(refresh), for: .valueChanged)
         
-        parentView.delegate = self
+        parentView?.delegate = self
 
-        parentView.refreshControl = refreshControl
+        parentView?.refreshControl = refreshControl
     }
 
-    public func setupData(viewData: ViewData) {
+    public func resetColors(viewData: ViewData) {
         self.viewData = viewData
         refreshBaseView.backgroundColor = viewData.background
         animationView.setColor(resource: viewData.resource)
     }
-    
-    @objc private func refresh(){
+}
+
+// MARK: - Actions
+
+fileprivate extension SpinnerAnimationView {
+    @objc func refresh() {
         self.delegate?.startRefresh()
     }
-    
-    // MARK: - Methods
+}
 
-    private func animateRefreshView() {
+// MARK: - Methods
 
-        self.isRefreshAnimating = true
-        
+fileprivate extension SpinnerAnimationView {
+    func animateRefreshView() {
+        isRefreshAnimating = true
+
         UIView.animate(
-            withDuration: Double(0.3),
+            withDuration: Constants.animateDuration,
             delay: .zero,
             options: UIView.AnimationOptions.curveEaseInOut,
             animations: {
@@ -173,7 +190,7 @@ public class SpinnerAnimationView: UIView {
                 self.animationView.loopMode = .loop
                 self.animationView.play()
 
-                self.backgroundColorView.backgroundColor = self.tintColor
+                self.backgroundColorView.backgroundColor = .clear
             },
             completion: { finished in
                 if self.refreshControl.isRefreshing {
@@ -184,21 +201,20 @@ public class SpinnerAnimationView: UIView {
             }
         )
     }
-    
-    private func resetAnimation() {
-        self.isRefreshAnimating = false
-        self.animationView.stop()
-        self.backgroundColorView.backgroundColor = .clear
+
+    func resetAnimation() {
+        isRefreshAnimating = false
+        animationView.stop()
+        backgroundColorView.backgroundColor = .clear
     }
 }
 
 // MARK: - UIScrollViewDelegate
 
 extension SpinnerAnimationView: UIScrollViewDelegate {
-
     public func scrollDidImageAnimation() {
         // Get the current size of the refresh controller
-        var refreshBounds = self.refreshControl.bounds
+        var refreshBounds = refreshControl.bounds
 
         let heightHalf = animationView.bounds.size.height / 2
         let widthHalf = animationView.bounds.size.width / 2
@@ -206,11 +222,11 @@ extension SpinnerAnimationView: UIScrollViewDelegate {
         // Set the Y coord of the graphics, based on pull distance
         let spinnerY = pullDistance / 2 - heightHalf
 
-        var spinnerFrame = self.animationView.frame
-        spinnerFrame.origin.x = (parentView.frame.size.width / 2) - widthHalf
+        var spinnerFrame = animationView.frame
+        spinnerFrame.origin.x = ((parentView?.frame.size.width ?? .zero) / 2) - widthHalf
         spinnerFrame.origin.y = spinnerY
 
-        self.animationView.frame = .init(
+        animationView.frame = .init(
             origin: spinnerFrame.origin,
             size: animationView.bounds.size
         )
@@ -218,30 +234,36 @@ extension SpinnerAnimationView: UIScrollViewDelegate {
         // Set the refreshBounds view's frames
         refreshBounds.size.height = pullDistance
 
-        self.backgroundColorView.frame = refreshBounds
-        self.refreshBaseView.frame = refreshBounds
+        backgroundColorView.frame = refreshBounds
+        refreshBaseView.frame = refreshBounds
 
         // If we're refreshing and the animation is not playing, then play the animation
-        if (self.refreshControl.isRefreshing && !self.isRefreshAnimating) {
+        if refreshControl.isRefreshing && !isRefreshAnimating {
             self.animateRefreshView()
         }
-
     }
 
     public func scrollViewDidScroll(_ scrollView: UIScrollView) {
         // Distance the table has been pulled >= 0
         pullDistance = max(.zero, -refreshControl.frame.origin.y)
-        if pullDistance == 0.0 {
-            return
+
+        // Annimate when scroll
+        if !refreshControl.isRefreshing || isRefreshAnimating && pullDistance < Constants.height {
+            animationView.currentTime = pullDistance / Constants.height
         }
+
+        guard pullDistance != .zero else { return }
+
         scrollDidImageAnimation()
     }
 
     public func endRefreshing() {
-        self.refreshControl.endRefreshing()
-        self.delegate?.endRefresh()
+        refreshControl.endRefreshing()
+        delegate?.endRefresh()
     }
 }
+
+// MARK: - Extensions
 
 extension AnimationView {
     func setColor(resource: SpinnerAnimationView.Resource) {
