@@ -8,35 +8,53 @@
 import UIKit
 import SSCustomPullToRefresh
 
-class SpinnerAnimationController: UIViewController {
-    
+final class SpinnerAnimationController: UIViewController {
+
     // Variables
 
     private var spinnerAnimation: SpinnerAnimationView?
-    private var cells: Int = 1
+    private var cellsCount: Int = 1
 
     // Outlets
 
     @IBOutlet private weak var tableView: UITableView!
-    
+
     // Lofecycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
         setUpSpinnerAnimation()
     }
-    
-    // Refresh Control
+}
 
+// MARK: - Methods
+
+fileprivate extension SpinnerAnimationController {
     func setUpSpinnerAnimation() {
         spinnerAnimation = SpinnerAnimationView(
             viewData: .init(
                 resource: .loading(tintColor: .black)),
             parentView: tableView,
-            delegate: self
+            startRefresh: { [weak self] in
+                self?.startRefresh()
+            },
+            endRefresh: { [weak self] in
+                self?.endRefresh()
+            }
         )
 
         spinnerAnimation?.setup()
+    }
+
+    func startRefresh() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            self.spinnerAnimation?.endRefreshing()
+        }
+    }
+
+    func endRefresh() {
+        cellsCount += 1
+        tableView.reloadData()
     }
 }
 
@@ -44,32 +62,17 @@ class SpinnerAnimationController: UIViewController {
 
 extension SpinnerAnimationController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return cells
+        return cellsCount
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cellIdentifier = "Cell"
+        let cellIdentifier = "cellIdentifier"
         var cell = tableView.dequeueReusableCell(withIdentifier: cellIdentifier)
         if cell == nil {
-            cell = UITableViewCell(style: UITableViewCell.CellStyle.default, reuseIdentifier: cellIdentifier)
+            cell = .init(style: .default, reuseIdentifier: cellIdentifier)
         }
         cell?.textLabel?.text = "Row \(indexPath.row + 1)"
 
         return cell ?? .init()
-    }
-}
-
-// MARK: - RefreshDelegate
-
-extension SpinnerAnimationController: RefreshDelegate {
-    func startRefresh() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            self.spinnerAnimation?.endRefreshing()
-        }
-    }
-    
-    func endRefresh() {
-        cells += 1
-        tableView.reloadData()
     }
 }
